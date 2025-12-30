@@ -24,36 +24,46 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     lastTriggeredAt = now;
-    await triggerReload();
+    await triggerReload('auto');
   });
 
   // Manual command
   const commandDisposable = vscode.commands.registerCommand(
     'bisReload.triggerReload',
     async () => {
-      await triggerReload();
+      await triggerReload('manual');
     }
   );
 
   context.subscriptions.push(saveDisposable, commandDisposable);
 }
 
-async function triggerReload() {
+async function triggerReload(source: 'auto' | 'manual' = 'auto') {
   const config = vscode.workspace.getConfiguration('bisReload');
   const cooldownMs = config.get<number>('cooldownMs', 5000);
+  const statusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left
+  );
+
+  statusBar.text = '$(sync~spin) Reloading BIS...';
+  statusBar.show();
 
   const now = Date.now();
-  if (now - lastTriggeredAt < cooldownMs) {
+  if (source === 'auto' && now - lastTriggeredAt < cooldownMs) {
     return;
   }
 
   lastTriggeredAt = now;
 
-  const success = await callUrlAndCheck(FIXED_URL);
-  if (success) {
-    showSuccessNotification();
-  } else {
-    showFailureNotification();
+  try {
+    const success = await callUrlAndCheck(FIXED_URL);
+    if (success) {
+      showSuccessNotification();
+    } else {
+      showFailureNotification();
+    }
+  } finally {
+    statusBar.dispose();
   }
 }
 
