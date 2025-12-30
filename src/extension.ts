@@ -5,7 +5,7 @@ const FIXED_URL = 'http://bis.local.com/v1/index.cfm?action=store.TicketVerifica
 let lastTriggeredAt = 0;
 
 export function activate(context: vscode.ExtensionContext) {
-  const disposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
+  const saveDisposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
     if (!document.fileName.endsWith('.cfc')) {
       return;
     }
@@ -24,16 +24,37 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     lastTriggeredAt = now;
-
-    const success = await callUrlAndCheck(FIXED_URL);
-    if (success) {
-      showSuccessNotification();
-    } else {
-      showFailureNotification();
-    }
+    await triggerReload();
   });
 
-  context.subscriptions.push(disposable);
+  // Manual command
+  const commandDisposable = vscode.commands.registerCommand(
+    'bisReload.triggerReload',
+    async () => {
+      await triggerReload();
+    }
+  );
+
+  context.subscriptions.push(saveDisposable, commandDisposable);
+}
+
+async function triggerReload() {
+  const config = vscode.workspace.getConfiguration('bisReload');
+  const cooldownMs = config.get<number>('cooldownMs', 5000);
+
+  const now = Date.now();
+  if (now - lastTriggeredAt < cooldownMs) {
+    return;
+  }
+
+  lastTriggeredAt = now;
+
+  const success = await callUrlAndCheck(FIXED_URL);
+  if (success) {
+    showSuccessNotification();
+  } else {
+    showFailureNotification();
+  }
 }
 
 export function deactivate() {}
