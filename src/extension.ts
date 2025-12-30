@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 const FIXED_URL = 'http://bis.local.com/v1/index.cfm?action=store.TicketVerification&reload=1';
 
 let lastTriggeredAt = 0;
+let isReloading = false;
 
 export function activate(context: vscode.ExtensionContext) {
   const saveDisposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
@@ -12,18 +13,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     const config = vscode.workspace.getConfiguration('bisReload');
     const autoReload = config.get<boolean>('autoReload', true);
-    const cooldownMs = config.get<number>('cooldownMs', 5000);
 
     if (!autoReload) {
       return;
     }
 
-    const now = Date.now();
-    if (now - lastTriggeredAt < cooldownMs) {
-      return;
-    }
-
-    lastTriggeredAt = now;
     await triggerReload('auto');
   });
 
@@ -45,6 +39,10 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto') {
     vscode.StatusBarAlignment.Left
   );
 
+  if (isReloading) {
+    return;
+  }
+
   statusBar.text = '$(sync~spin) Reloading BIS...';
   statusBar.show();
 
@@ -54,6 +52,7 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto') {
   }
 
   lastTriggeredAt = now;
+  isReloading = true;
 
   try {
     const success = await callUrlAndCheck(FIXED_URL);
@@ -63,6 +62,7 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto') {
       showFailureNotification();
     }
   } finally {
+    isReloading = false;
     statusBar.dispose();
   }
 }

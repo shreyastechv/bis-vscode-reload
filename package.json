@@ -2,7 +2,7 @@
   "name": "bis-vscode-reload",
   "displayName": "bis-vscode-reload",
   "description": "Auto reloads BIS coldfusion website when a change is detected in a .cfc file",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "engines": {
     "vscode": "^1.107.0"
   },
