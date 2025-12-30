@@ -2,7 +2,7 @@
   "name": "bis-vscode-reload",
   "displayName": "bis-vscode-reload",
   "description": "Auto reloads BIS coldfusion website when a change is detected in a .cfc file",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "engines": {
     "vscode": "^1.107.0"
   },
@@ -22,6 +22,12 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically reload the BIS application when a .cfc file is saved."
+        },
+        "bisReload.cooldownMs": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 0,
+          "description": "Cooldown time (in milliseconds) between automatic reloads."
         }
       }
     },

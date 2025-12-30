@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 
 const FIXED_URL = 'http://bis.local.com/v1/index.cfm?action=store.TicketVerification&reload=1';
-const COOLDOWN_MS = 5000;
 
 let lastTriggeredAt = 0;
 
@@ -13,13 +12,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     const config = vscode.workspace.getConfiguration('bisReload');
     const autoReload = config.get<boolean>('autoReload', true);
+    const cooldownMs = config.get<number>('cooldownMs', 5000);
 
     if (!autoReload) {
       return;
     }
 
     const now = Date.now();
-    if (now - lastTriggeredAt < COOLDOWN_MS) {
+    if (now - lastTriggeredAt < cooldownMs) {
       return;
     }
 
