@@ -2,7 +2,7 @@
   "name": "bis-vscode-reload",
   "displayName": "bis-vscode-reload",
   "description": "Auto reloads BIS coldfusion website when a change is detected in a .cfc file",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engines": {
     "vscode": "^1.107.0"
   },
@@ -15,6 +15,16 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "BIS Reload",
+      "properties": {
+        "bisReload.autoReload": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically reload the BIS application when a .cfc file is saved."
+        }
+      }
+    },
     "commands": [
       {
         "command": "bis-vscode-reload.helloWorld",

@@ -10,18 +10,29 @@ export function activate(context: vscode.ExtensionContext) {
     if (!document.fileName.endsWith('.cfc')) {
       return;
     }
+
+    const config = vscode.workspace.getConfiguration('bisReload');
+    const autoReload = config.get<boolean>('autoReload', true);
+
+    if (!autoReload) {
+      return;
+    }
+
     const now = Date.now();
     if (now - lastTriggeredAt < COOLDOWN_MS) {
       return;
     }
+
     lastTriggeredAt = now;
+
     const success = await callUrlAndCheck(FIXED_URL);
     if (success) {
-			showSuccessNotification();
-		} else {
+      showSuccessNotification();
+    } else {
       showFailureNotification();
     }
   });
+
   context.subscriptions.push(disposable);
 }
 
