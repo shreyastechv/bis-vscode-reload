@@ -50,6 +50,6 @@ Open **Settings** → search for **“BIS Reload”**
 ### Example (`settings.json`)
 ```json
 {
-  "bisReload.autoReload": true,
-  "bisReload.cooldownMs": 10000
+  "bisReload.autoReload": false,
+  "bisReload.cooldownMs": 20000
 }
