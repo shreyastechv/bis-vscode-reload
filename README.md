@@ -1,39 +1,55 @@
-# CFC Save Trigger URL Caller
+# BIS Reload – CFC Auto & Manual Application Reload
 
-A lightweight VS Code extension that silently calls a fixed URL whenever a `.cfc` (ColdFusion Component) file is saved — with a configurable cooldown to prevent excessive calls.
+A lightweight VS Code extension that **automatically or manually triggers an application reload** by calling a fixed HTTP URL when a `.cfc` (ColdFusion Component) file is saved — with configurable settings, cooldown protection, and visual feedback.
 
-This extension runs completely in the background and is designed for automation, validation hooks, or integration with external services.
+Designed for ColdFusion / BIS-style development workflows where saving backend code requires reloading the running application.
 
 ---
 
 ## ✨ Features
 
-- 🚀 Automatically triggers on **save** of `.cfc` files
-- 🔁 Calls a **fixed HTTP URL** (no browser, no UI)
-- ⏱️ Built-in **cooldown** (default: once every 30 seconds)
-- 🧠 Lightweight and non-intrusive
-- 🛠️ Runs automatically when VS Code starts
+- 🔄 **Auto reload on save** of `.cfc` files  
+- ⌨️ **Manual reload command** (bindable to a key)  
+- ⏱️ **Configurable cooldown** to prevent excessive reloads  
+- 📊 **Status bar spinner** while reload is in progress  
+- 🔒 **Execution lock** — prevents parallel reloads  
+- 🔔 **Success / failure notifications**  
+- ⚙️ Fully configurable via **VS Code Settings UI**  
+- 🧠 Lightweight and non-intrusive  
 
 ---
 
 ## 🔧 How It Works
 
-1. You edit a `.cfc` file
-2. You save the file
-3. The extension checks:
-   - Is it a `.cfc` file?
-   - Has the cooldown period passed?
-4. If yes → it makes an HTTP request to the configured URL
+### Auto Reload
+1. You edit and save a `.cfc` file  
+2. The extension checks:
+   - Is auto reload enabled?
+   - Is a reload already in progress?
+   - Has the cooldown period elapsed?
+3. If yes → it calls the configured reload URL
 
-No popups. No Chrome tabs. Completely silent.
+### Manual Reload
+- Run the command **“BIS: Reload Application”**
+- Or trigger it via a custom keybinding
+- Manual reloads bypass the cooldown but still respect the execution lock
 
 ---
 
-## 📦 Installation
+## ⚙️ Configuration (via Settings UI)
 
-### Option 1: Install from VSIX (recommended)
+Open **Settings** → search for **“BIS Reload”**
 
-1. Package the extension:
-   ```bash
-   npm run compile
-   vsce package
+### Available settings
+
+| Setting | Type | Default | Description |
+|------|------|--------|------------|
+| `bisReload.autoReload` | boolean | `true` | Enable or disable automatic reload on `.cfc` save |
+| `bisReload.cooldownMs` | number | `5000` | Cooldown period between reloads (in milliseconds) |
+
+### Example (`settings.json`)
+```json
+{
+  "bisReload.autoReload": true,
+  "bisReload.cooldownMs": 10000
+}
