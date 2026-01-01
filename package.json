@@ -1,6 +1,7 @@
 {
   "name": "bis-vscode-reload",
   "displayName": "bis-vscode-reload",
+  "publisher": "shreyas-a-s",
   "description": "Auto reloads BIS coldfusion website when a change is detected in a .cfc file",
   "version": "1.6.0",
   "engines": {
