@@ -4,6 +4,7 @@ const FIXED_URL = 'http://bis.local.com/v1/index.cfm?action=store.TicketVerifica
 
 let lastTriggeredAt = 0;
 let isReloading = false;
+let statusBar: vscode.StatusBarItem;
 
 export function activate(context: vscode.ExtensionContext) {
   const saveDisposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
@@ -29,28 +30,33 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(saveDisposable, commandDisposable);
+  // Status bar
+  statusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left
+  );
+
+  context.subscriptions.push(saveDisposable, commandDisposable, statusBar);
 }
 
 async function triggerReload(source: 'auto' | 'manual' = 'auto') {
   const config = vscode.workspace.getConfiguration('bisReload');
   const cooldownMs = config.get<number>('cooldownMs', 5000);
   const reloadUrl = config.get<string>('reloadUrl', FIXED_URL);
-  const statusBar = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left
-  );
 
   if (isReloading) {
+    if (source === 'manual') {
+      vscode.window.showWarningMessage('Reload already in progress.');
+    }
     return;
   }
-
-  statusBar.text = '$(sync~spin) Reloading BIS...';
-  statusBar.show();
 
   const now = Date.now();
   if (source === 'auto' && now - lastTriggeredAt < cooldownMs) {
     return;
   }
+
+  statusBar.text = '$(sync~spin) Reloading BIS...';
+  statusBar.show();
 
   lastTriggeredAt = now;
   isReloading = true;
@@ -64,7 +70,7 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto') {
     }
   } finally {
     isReloading = false;
-    statusBar.dispose();
+    statusBar.hide();
   }
 }
 
