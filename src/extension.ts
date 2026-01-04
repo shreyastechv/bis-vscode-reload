@@ -35,6 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
 async function triggerReload(source: 'auto' | 'manual' = 'auto') {
   const config = vscode.workspace.getConfiguration('bisReload');
   const cooldownMs = config.get<number>('cooldownMs', 5000);
+  const reloadUrl = config.get<string>('reloadUrl', FIXED_URL);
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left
   );
@@ -55,7 +56,7 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto') {
   isReloading = true;
 
   try {
-    const success = await callUrlAndCheck(FIXED_URL);
+    const success = await callUrlAndCheck(reloadUrl);
     if (success) {
       showSuccessNotification();
     } else {

@@ -3,7 +3,7 @@
   "displayName": "bis-vscode-reload",
   "publisher": "shreyas-a-s",
   "description": "Auto reloads BIS coldfusion website when a change is detected in a .cfc file",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "engines": {
     "vscode": "^1.105.0"
   },
@@ -33,6 +33,11 @@
           "default": 60000,
           "minimum": 0,
           "description": "Cooldown time (in milliseconds) between automatic reloads."
+        },
+        "bisReload.reloadUrl": {
+          "type": "string",
+          "default": "http://bis.local.com/v1/index.cfm?action=store.TicketVerification&reload=1",
+          "description": "URL used to trigger a reload of the BIS website."
         }
       }
     },
