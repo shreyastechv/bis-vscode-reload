@@ -43,6 +43,7 @@ jobs:
         id: vsix
         run: |
           VSIX_FILE=$(ls *.vsix)
+          cp "$VSIX_FILE" bis-vscode-reload.vsix
           echo "vsix_file=$VSIX_FILE" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
@@ -50,4 +51,6 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: BIS Reload v${{ steps.version.outputs.version }}
-          files: ${{ steps.vsix.outputs.vsix_file }}
+          files: |
+            ${{ steps.vsix.outputs.vsix_file }}
+            bis-vscode-reload.vsix

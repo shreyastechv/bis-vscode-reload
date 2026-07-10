@@ -61,3 +61,26 @@ Open **Settings** → search for **“BIS Reload”**
   "bisReload.autoReload": false,
   "bisReload.cooldownMs": 20000
 }
+```
+
+---
+
+## Installation
+
+Download and install the latest `.vsix` file from the latest GitHub release:
+
+```bash
+curl -L -o /tmp/bis-vscode-reload.vsix https://github.com/shreyastechv/bis-vscode-reload/releases/latest/download/bis-vscode-reload.vsix && code --install-extension /tmp/bis-vscode-reload.vsix
+```
+
+Reload VS Code if prompted.
+
+## Upgrading
+
+There is one release workflow, so upgrades use the same latest release artifact. Download the latest `.vsix` file and install it over the existing extension:
+
+```bash
+curl -L -o /tmp/bis-vscode-reload.vsix https://github.com/shreyastechv/bis-vscode-reload/releases/latest/download/bis-vscode-reload.vsix && code --install-extension /tmp/bis-vscode-reload.vsix --force
+```
+
+The `--force` flag tells VS Code to replace the currently installed extension with the supplied VSIX file.
