@@ -3,7 +3,7 @@
   "displayName": "bis-vscode-reload",
   "publisher": "shreyas-a-s",
   "description": "Auto reloads BIS coldfusion website when a change is detected in a .cfc file",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "engines": {
     "vscode": "^1.105.0"
   },
@@ -25,19 +25,19 @@
       "properties": {
         "bisReload.autoReload": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Automatically reload the BIS application when a .cfc file is saved."
         },
         "bisReload.cooldownMs": {
           "type": "number",
-          "default": 60000,
+          "default": 5000,
           "minimum": 0,
           "description": "Cooldown time (in milliseconds) between automatic reloads."
         },
         "bisReload.reloadUrl": {
           "type": "string",
-          "default": "http://bis.local.com/v1/index.cfm?action=store.TicketVerification&reload=1",
-          "description": "URL used to trigger a reload of the BIS website."
+          "default": "",
+          "description": "Optional URL used to trigger a reload of the BIS website. Leave empty to auto-detect the URL from the saved BIS app or worktree path."
         }
       }
     },

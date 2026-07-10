@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 
-const FIXED_URL = 'http://bis.local.com/v1/index.cfm?action=store.TicketVerification&reload=1';
+const MAIN_APP_PATH = '/var/www/bistrainer/app';
+const WORKTREE_BASE_PATH = '/var/www/bistrainer/app-worktrees/';
+const MAIN_APP_HOST = 'bisdev.local.com';
+const RELOAD_PATH = '/v1/index.cfm?action=store.TicketVerification&reload=1';
 
 let lastTriggeredAt = 0;
 let isReloading = false;
@@ -19,14 +22,17 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    await triggerReload('auto');
+    await triggerReload('auto', document.fileName);
   });
 
   // Manual command
   const commandDisposable = vscode.commands.registerCommand(
     'bisReload.triggerReload',
     async () => {
-      await triggerReload('manual');
+      await triggerReload(
+        'manual',
+        vscode.window.activeTextEditor?.document.fileName
+      );
     }
   );
 
@@ -38,10 +44,10 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(saveDisposable, commandDisposable, statusBar);
 }
 
-async function triggerReload(source: 'auto' | 'manual' = 'auto') {
+async function triggerReload(source: 'auto' | 'manual' = 'auto', fileName?: string) {
   const config = vscode.workspace.getConfiguration('bisReload');
   const cooldownMs = config.get<number>('cooldownMs', 5000);
-  const reloadUrl = config.get<string>('reloadUrl', FIXED_URL);
+  const reloadUrl = resolveReloadUrl(fileName);
 
   if (isReloading) {
     if (source === 'manual') {
@@ -75,6 +81,56 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto') {
 }
 
 export function deactivate() {}
+
+export function resolveReloadUrl(fileName?: string): string {
+  const configuredUrl = getConfiguredReloadUrl(fileName);
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  const normalizedFileName = fileName?.replace(/\\/g, '/');
+
+  if (normalizedFileName?.startsWith(`${WORKTREE_BASE_PATH}`)) {
+    const worktreeName = normalizedFileName
+      .slice(WORKTREE_BASE_PATH.length)
+      .split('/')[0];
+
+    if (worktreeName) {
+      return buildReloadUrl(
+        `${slugifyWorktreeName(worktreeName)}.bisdev.local.com`
+      );
+    }
+  }
+
+  if (normalizedFileName?.startsWith(`${MAIN_APP_PATH}/`)) {
+    return buildReloadUrl(MAIN_APP_HOST);
+  }
+
+  return buildReloadUrl(MAIN_APP_HOST);
+}
+
+function getConfiguredReloadUrl(fileName?: string): string | undefined {
+  const resource = fileName ? vscode.Uri.file(fileName) : undefined;
+  const inspected = vscode.workspace
+    .getConfiguration('bisReload', resource)
+    .inspect<string>('reloadUrl');
+
+  return inspected?.workspaceFolderValue
+    ?? inspected?.workspaceValue
+    ?? inspected?.globalValue;
+}
+
+function slugifyWorktreeName(worktreeName: string): string {
+  return worktreeName
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-');
+}
+
+function buildReloadUrl(host: string): string {
+  return `https://${host}${RELOAD_PATH}`;
+}
 
 async function callUrlAndCheck(url: string): Promise<boolean> {
   try {

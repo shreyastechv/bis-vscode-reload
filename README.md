@@ -1,6 +1,6 @@
 # BIS Reload – CFC Auto & Manual Application Reload
 
-A lightweight VS Code extension that **automatically or manually triggers an application reload** by calling a fixed HTTP URL when a `.cfc` (ColdFusion Component) file is saved — with configurable settings, cooldown protection, and visual feedback.
+A lightweight VS Code extension that **automatically or manually triggers an application reload** when a `.cfc` (ColdFusion Component) file is saved — with BIS app/worktree URL detection, configurable settings, cooldown protection, and visual feedback.
 
 Designed for ColdFusion / BIS-style development workflows where saving backend code requires reloading the running application.
 
@@ -27,7 +27,14 @@ Designed for ColdFusion / BIS-style development workflows where saving backend c
    - Is auto reload enabled?
    - Is a reload already in progress?
    - Has the cooldown period elapsed?
-3. If yes → it calls the configured reload URL
+3. If yes → it calls the configured or auto-detected reload URL
+
+When no reload URL is configured, the extension derives the BIS site from the saved file path:
+
+| Saved file path | Reload host |
+|------|------|
+| `/var/www/bistrainer/app/...` | `https://bisdev.local.com` |
+| `/var/www/bistrainer/app-worktrees/Staging_May2026/...` | `https://staging-may2026.bisdev.local.com` |
 
 ### Manual Reload
 - Run the command **“BIS: Reload Application”**
@@ -46,6 +53,7 @@ Open **Settings** → search for **“BIS Reload”**
 |------|------|--------|------------|
 | `bisReload.autoReload` | boolean | `true` | Enable or disable automatic reload on `.cfc` save |
 | `bisReload.cooldownMs` | number | `5000` | Cooldown period between reloads (in milliseconds) |
+| `bisReload.reloadUrl` | string | `""` | Optional reload URL override. Leave empty to auto-detect from the saved file path. |
 
 ### Example (`settings.json`)
 ```json
