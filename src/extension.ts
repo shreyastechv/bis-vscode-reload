@@ -1,3 +1,5 @@
+import * as http from 'http';
+import * as https from 'https';
 import * as vscode from 'vscode';
 
 const MAIN_APP_PATH = '/var/www/bistrainer/app';
@@ -62,6 +64,7 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto', fileName?: stri
   }
 
   statusBar.text = '$(sync~spin) Reloading BIS...';
+  statusBar.tooltip = `Reload URL: ${reloadUrl}`;
   statusBar.show();
 
   lastTriggeredAt = now;
@@ -76,6 +79,7 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto', fileName?: stri
     }
   } finally {
     isReloading = false;
+    statusBar.tooltip = undefined;
     statusBar.hide();
   }
 }
@@ -133,12 +137,37 @@ function buildReloadUrl(host: string): string {
 }
 
 async function callUrlAndCheck(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(url, { method: 'GET' });
-    return response.ok && !response.redirected;
-  } catch {
-    return false;
-  }
+  return new Promise((resolve) => {
+    const parsedUrl = new URL(url);
+    const isHttps = parsedUrl.protocol === 'https:';
+    const requestModule = isHttps ? https : http;
+    const requestOptions: https.RequestOptions = {
+      method: 'GET',
+      timeout: 30000
+    };
+
+    if (isHttps && parsedUrl.hostname.endsWith('.local.com')) {
+      requestOptions.rejectUnauthorized = false;
+    }
+
+    const request = requestModule.request(parsedUrl, requestOptions, (response) => {
+      response.resume();
+
+      const statusCode = response.statusCode ?? 0;
+      resolve(statusCode >= 200 && statusCode < 300);
+    });
+
+    request.on('timeout', () => {
+      request.destroy();
+      resolve(false);
+    });
+
+    request.on('error', () => {
+      resolve(false);
+    });
+
+    request.end();
+  });
 }
 
 function showSuccessNotification() {
