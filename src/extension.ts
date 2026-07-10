@@ -114,6 +114,8 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto', fileName?: stri
       showSuccessNotification(source);
     } else if (result === 'failure') {
       showFailureNotification();
+    } else {
+      showCancelledNotification();
     }
   } finally {
     isReloading = false;
@@ -299,5 +301,11 @@ function showSuccessNotification(source: 'auto' | 'manual') {
 function showFailureNotification() {
   vscode.window.showErrorMessage(
     'Unable to Reload the BIS Application. Please check the error logs for more details.'
+  );
+}
+
+function showCancelledNotification() {
+  vscode.window.showErrorMessage(
+    'BIS Application reload was stopped.'
   );
 }
