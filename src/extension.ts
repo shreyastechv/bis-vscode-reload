@@ -1,5 +1,9 @@
+import * as childProcess from 'child_process';
+import * as crypto from 'crypto';
 import * as http from 'http';
 import * as https from 'https';
+import * as path from 'path';
+import * as util from 'util';
 import * as vscode from 'vscode';
 
 const MAIN_APP_PATH = '/var/www/bistrainer/app';
@@ -10,8 +14,16 @@ const RELOAD_PATH = '/v1/index.cfm?action=store.TicketVerification&reload=1';
 let lastTriggeredAt = 0;
 let isReloading = false;
 let statusBar: vscode.StatusBarItem;
+let activeReloadRequest: http.ClientRequest | undefined;
+let stopReloadRequested = false;
+const documentHashes = new Map<string, string>();
+const execFile = util.promisify(childProcess.execFile);
 
 export function activate(context: vscode.ExtensionContext) {
+  for (const document of vscode.workspace.textDocuments) {
+    rememberDocumentHash(document);
+  }
+
   const saveDisposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
     if (!document.fileName.endsWith('.cfc')) {
       return;
@@ -24,7 +36,18 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
+    const shouldReload = await hasReloadableChange(document);
+    rememberDocumentHash(document);
+
+    if (!shouldReload) {
+      return;
+    }
+
     await triggerReload('auto', document.fileName);
+  });
+
+  const openDisposable = vscode.workspace.onDidOpenTextDocument((document) => {
+    rememberDocumentHash(document);
   });
 
   // Manual command
@@ -38,12 +61,23 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const stopCommandDisposable = vscode.commands.registerCommand(
+    'bisReload.stopReload',
+    stopReload
+  );
+
   // Status bar
   statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left
   );
 
-  context.subscriptions.push(saveDisposable, commandDisposable, statusBar);
+  context.subscriptions.push(
+    saveDisposable,
+    openDisposable,
+    commandDisposable,
+    stopCommandDisposable,
+    statusBar
+  );
 }
 
 async function triggerReload(source: 'auto' | 'manual' = 'auto', fileName?: string) {
@@ -53,7 +87,9 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto', fileName?: stri
 
   if (isReloading) {
     if (source === 'manual') {
-      vscode.window.showWarningMessage('Reload already in progress.');
+      vscode.window.showWarningMessage(
+        'Reload already in progress. Click the reloading section in the Status Bar to stop reloading'
+      );
     }
     return;
   }
@@ -64,27 +100,97 @@ async function triggerReload(source: 'auto' | 'manual' = 'auto', fileName?: stri
   }
 
   statusBar.text = '$(sync~spin) Reloading BIS...';
-  statusBar.tooltip = `Reload URL: ${reloadUrl}`;
+  statusBar.tooltip = `Reload URL: ${reloadUrl}\nClick to stop reloading`;
+  statusBar.command = 'bisReload.stopReload';
   statusBar.show();
 
   lastTriggeredAt = now;
   isReloading = true;
+  stopReloadRequested = false;
 
   try {
-    const success = await callUrlAndCheck(reloadUrl);
-    if (success) {
-      showSuccessNotification();
-    } else {
+    const result = await callUrlAndCheck(reloadUrl);
+    if (result === 'success') {
+      showSuccessNotification(source);
+    } else if (result === 'failure') {
       showFailureNotification();
     }
   } finally {
     isReloading = false;
     statusBar.tooltip = undefined;
+    statusBar.command = undefined;
     statusBar.hide();
   }
 }
 
 export function deactivate() {}
+
+function stopReload() {
+  if (!isReloading || !activeReloadRequest) {
+    return;
+  }
+
+  stopReloadRequested = true;
+  activeReloadRequest.destroy();
+}
+
+async function hasReloadableChange(document: vscode.TextDocument): Promise<boolean> {
+  const gitStatus = await getGitFileStatus(document.fileName);
+
+  if (gitStatus === 'changed') {
+    return true;
+  }
+
+  if (hasSessionChange(document)) {
+    return true;
+  }
+
+  return gitStatus === 'not-git';
+}
+
+async function getGitFileStatus(fileName: string): Promise<'changed' | 'unchanged' | 'not-git'> {
+  const cwd = path.dirname(fileName);
+
+  try {
+    const { stdout: insideWorkTree } = await execFile(
+      'git',
+      ['-C', cwd, 'rev-parse', '--is-inside-work-tree'],
+      { timeout: 5000 }
+    );
+
+    if (insideWorkTree.trim() !== 'true') {
+      return 'not-git';
+    }
+
+    const { stdout } = await execFile(
+      'git',
+      ['-C', cwd, 'status', '--porcelain', '--', fileName],
+      { timeout: 5000 }
+    );
+
+    return stdout.trim() ? 'changed' : 'unchanged';
+  } catch {
+    return 'not-git';
+  }
+}
+
+function hasSessionChange(document: vscode.TextDocument): boolean {
+  const currentHash = getDocumentHash(document);
+  const previousHash = documentHashes.get(document.fileName);
+
+  return previousHash !== undefined && previousHash !== currentHash;
+}
+
+function rememberDocumentHash(document: vscode.TextDocument) {
+  documentHashes.set(document.fileName, getDocumentHash(document));
+}
+
+function getDocumentHash(document: vscode.TextDocument): string {
+  return crypto
+    .createHash('sha256')
+    .update(document.getText())
+    .digest('hex');
+}
 
 export function resolveReloadUrl(fileName?: string): string {
   const configuredUrl = getConfiguredReloadUrl(fileName);
@@ -136,7 +242,7 @@ function buildReloadUrl(host: string): string {
   return `https://${host}${RELOAD_PATH}`;
 }
 
-async function callUrlAndCheck(url: string): Promise<boolean> {
+async function callUrlAndCheck(url: string): Promise<'success' | 'failure' | 'cancelled'> {
   return new Promise((resolve) => {
     const parsedUrl = new URL(url);
     const isHttps = parsedUrl.protocol === 'https:';
@@ -150,29 +256,43 @@ async function callUrlAndCheck(url: string): Promise<boolean> {
       requestOptions.rejectUnauthorized = false;
     }
 
+    let isSettled = false;
+    const settle = (result: 'success' | 'failure' | 'cancelled') => {
+      if (isSettled) {
+        return;
+      }
+
+      isSettled = true;
+      activeReloadRequest = undefined;
+      resolve(result);
+    };
+
     const request = requestModule.request(parsedUrl, requestOptions, (response) => {
       response.resume();
 
       const statusCode = response.statusCode ?? 0;
-      resolve(statusCode >= 200 && statusCode < 300);
+      settle(statusCode >= 200 && statusCode < 300 ? 'success' : 'failure');
     });
+    activeReloadRequest = request;
 
     request.on('timeout', () => {
       request.destroy();
-      resolve(false);
+      settle('failure');
     });
 
     request.on('error', () => {
-      resolve(false);
+      settle(stopReloadRequested ? 'cancelled' : 'failure');
     });
 
     request.end();
   });
 }
 
-function showSuccessNotification() {
+function showSuccessNotification(source: 'auto' | 'manual') {
+  const sourceLabel = source === 'auto' ? 'Auto-reload' : 'Manual reload';
+
   vscode.window.showInformationMessage(
-    'BIS Application reloaded successfully.'
+    `${sourceLabel}: BIS Application reloaded successfully.`
   );
 }
 
